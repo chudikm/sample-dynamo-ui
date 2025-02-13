@@ -35,7 +35,8 @@ describe('FetchItem', () => {
     render(<FetchItem />);
     fireEvent.click(screen.getByText('Fetch Item'));
 
-    // You can add more assertions here to check for error handling
-    // For example, you might want to check if an error message is displayed
+    const errorMessage = await screen.findByText('Error fetching item');
+    expect(errorMessage).toBeInTheDocument();
+    expect(errorMessage).toHaveStyle('color: red');
   });
 });
