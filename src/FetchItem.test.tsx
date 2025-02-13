@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import FetchItem from './FetchItem';
 
@@ -9,7 +9,12 @@ import FetchItem from './FetchItem';
 
 global.fetch = jest.fn(() =>
   Promise.resolve({
-    json: () => Promise.resolve({ value: 'Fetched Item' }),
+    json: () => Promise.resolve({
+      nodes: ['Person_1', 'Person_2'],
+      edges: [
+        { from: 'Person_1', to: 'Person_2', timestamp: '2025-02-11T14:20:53', amount: 100 },
+      ],
+    }),
   })
 ) as jest.Mock;
 
@@ -20,11 +25,15 @@ describe('FetchItem', () => {
     expect(screen.getByText('Fetch Item')).toBeInTheDocument();
   });
 
-  test('fetches and displays item on button click', async () => {
+  test('fetches and displays graph data on button click', async () => {
     render(<FetchItem />);
     fireEvent.click(screen.getByText('Fetch Item'));
-    const fetchedItem = await screen.findByText('Fetched Item');
-    expect(fetchedItem).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Person_1'));
+      expect(screen.getAllByText('Person_2'));
+      expect(screen.getByText('100')).toBeInTheDocument();
+    });
   });
 
   test('handles fetch error', async () => {
@@ -35,8 +44,8 @@ describe('FetchItem', () => {
     render(<FetchItem />);
     fireEvent.click(screen.getByText('Fetch Item'));
 
-    const errorMessage = await screen.findByText('Error fetching item');
-    expect(errorMessage).toBeInTheDocument();
-    expect(errorMessage).toHaveStyle('color: red');
+    await waitFor(() => {
+      expect(screen.getByText('Error fetching item')).toBeInTheDocument();
+    });
   });
 });

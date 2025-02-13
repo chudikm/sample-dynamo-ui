@@ -1,14 +1,21 @@
 import React, { useState } from 'react';
+import GraphComponent from './components/GraphComponent';
+
+interface GraphData {
+  nodes: string[];
+  edges: { from: string; to: string; timestamp: string; amount: number }[];
+}
 
 const FetchItem: React.FC = () => {
-  const [item, setItem] = useState<string | null>(null);
+  const [data, setData] = useState<GraphData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const fetchItem = async () => {
     try {
-      const response = await fetch('/api/items/123');
+      const response = await fetch('/api/transactions/graph');
       const data = await response.json();
-      setItem(data.value);
+      console.log(data); // Log the returned data to the console
+      setData(data); // Set the fetched data
       setError(null); // Clear any previous error
     } catch (error) {
       console.error('Error fetching item:', error);
@@ -19,7 +26,7 @@ const FetchItem: React.FC = () => {
   return (
     <div>
       <button onClick={fetchItem}>Fetch Item</button>
-      {item && <p>{item}</p>}
+      {data && <GraphComponent data={data} />}
       {error && <p style={{ color: 'red' }}>{error}</p>}
     </div>
   );

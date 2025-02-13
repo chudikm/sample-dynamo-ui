@@ -1,5 +1,6 @@
 import React from 'react';
 import FetchItem from './FetchItem';
+import GraphComponent from './components/GraphComponent';
 import './App.css';
 
 function App() {
