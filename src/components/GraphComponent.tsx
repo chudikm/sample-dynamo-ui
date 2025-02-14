@@ -61,6 +61,7 @@ const GraphComponent: React.FC<GraphComponentProps> = ({ data, selectedNode, onN
       .attr('r', 10)
       .attr('fill', '#69b3a2')
       .attr('data-id', d => d.id)
+      .attr('aria-label', d =>`Node ${d.id}`)
       .call(d3.drag<any, { id: string }>()
         .on('start', dragstarted)
         .on('drag', dragged)

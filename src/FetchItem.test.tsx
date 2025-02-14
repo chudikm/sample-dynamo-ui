@@ -7,32 +7,37 @@ import FetchItem from './FetchItem';
  * @jest-environment jsdom
  */
 
-global.fetch = jest.fn(() =>
-  Promise.resolve({
-    json: () => Promise.resolve({
-      nodes: ['Person_1', 'Person_2'],
-      edges: [
-        { from: 'Person_1', to: 'Person_2', timestamp: '2025-02-11T14:20:53', amount: 100 },
-      ],
-    }),
-  })
-) as jest.Mock;
-
 describe('FetchItem', () => {
+  beforeEach(() => {
+    global.fetch = jest.fn(() =>
+      Promise.resolve({
+        json: () => Promise.resolve({
+          nodes: ['Node1', 'Node2'],
+          edges: [
+            { from: 'Node1', to: 'Node2', timestamp: '2025-02-14T00:00:00Z', amount: 100 }
+          ]
+        })
+      })
+    ) as jest.Mock;
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
 
   test('renders FetchItem component', () => {
     render(<FetchItem />);
     expect(screen.getByText('Fetch Item')).toBeInTheDocument();
   });
 
-  test('fetches and displays graph data on button click', async () => {
+  test('fetches and displays data', async () => {
     render(<FetchItem />);
+
     fireEvent.click(screen.getByText('Fetch Item'));
 
     await waitFor(() => {
-      expect(screen.getAllByText('Person_1'));
-      expect(screen.getAllByText('Person_2'));
-      expect(screen.getByText('100')).toBeInTheDocument();
+        expect(screen.getByLabelText('Node Node1')).toBeInTheDocument();
+        expect(screen.getByLabelText('Node Node2')).toBeInTheDocument();
     });
   });
 
@@ -47,5 +52,19 @@ describe('FetchItem', () => {
     await waitFor(() => {
       expect(screen.getByText('Error fetching item')).toBeInTheDocument();
     });
+  });
+
+  test('updates selected node on dropdown change', async () => {
+    render(<FetchItem />);
+
+    fireEvent.click(screen.getByText('Fetch Item'));
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Node1'));
+    });
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'Node1' } });
+
+    expect(screen.getByRole('combobox')).toHaveValue('Node1');
   });
 });

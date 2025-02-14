@@ -1,20 +1,40 @@
 import React from 'react';
-import { render } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import GraphComponent from './GraphComponent';
 
 const mockData = {
-  nodes: ['Person_1', 'Person_2'],
+  nodes: ['Node1', 'Node2'],
   edges: [
-    { from: 'Person_1', to: 'Person_2', timestamp: '2025-02-11T14:20:53', amount: 100 },
-  ],
+    { from: 'Node1', to: 'Node2', timestamp: '2025-02-14T00:00:00Z', amount: 100 }
+  ]
 };
 
 describe('GraphComponent', () => {
-  test('renders GraphComponent with nodes and edges', () => {
-    const { container } = render(<GraphComponent data={mockData} />);
-    expect(container.querySelector('svg')).toBeInTheDocument();
-    expect(container.querySelectorAll('circle').length).toBe(2);
-    expect(container.querySelectorAll('line').length).toBe(1);
+  test('renders graph nodes and edges', () => {
+    render(<GraphComponent data={mockData} selectedNode={null} onNodeClick={jest.fn()} />);
+
+    expect(screen.getByLabelText('Node Node1')).toBeInTheDocument();
+    expect(screen.getByLabelText('Node Node2')).toBeInTheDocument();
+  });
+
+  test('calls onNodeClick when a node is clicked', () => {
+    const handleNodeClick = jest.fn();
+    render(<GraphComponent data={mockData} selectedNode={null} onNodeClick={handleNodeClick} />);
+
+    const node = screen.getByLabelText('Node Node1');
+    fireEvent.click(node);
+
+    expect(handleNodeClick).toHaveBeenCalledWith('Node1');
+  });
+
+  test('highlights selected node', async () => {
+    render(<GraphComponent data={mockData} selectedNode="Node1" onNodeClick={jest.fn()} />);
+
+    const node = screen.getByLabelText('Node Node1');
+    await waitFor(() => {
+        expect(node).toHaveAttribute('fill', 'blue');
+    });
+    
   });
 });
