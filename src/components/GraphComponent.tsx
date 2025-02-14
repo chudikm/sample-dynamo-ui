@@ -26,12 +26,31 @@ const GraphComponent: React.FC<GraphComponentProps> = ({ data, selectedNode, onN
       .attr('width', width)
       .attr('height', height);
 
+    // Define arrow markers for graph links
+    const markerColors = ['#999', 'blue', 'red', 'orange', 'green'];
+    const defs = svg.append('defs');
+    markerColors.forEach(color => {
+      defs.append('marker')
+        .attr('id', `arrowhead-${color}`)
+        .attr('viewBox', '-0 -5 10 10')
+        .attr('refX', 13)
+        .attr('refY', 0)
+        .attr('orient', 'auto')
+        .attr('markerWidth', 6)
+        .attr('markerHeight', 6)
+        .attr('xoverflow', 'visible')
+        .append('svg:path')
+        .attr('d', 'M 0,-5 L 10 ,0 L 0,5')
+        .attr('fill', color)
+        .style('stroke', 'none');
+    });
+
     const nodes = data.nodes.map(node => ({ id: node, x: 0, y: 0 }));
     const links = data.edges.map(edge => ({ source: edge.from, target: edge.to, amount: edge.amount }));
 
     const simulation = d3.forceSimulation(nodes)
       .force('link', d3.forceLink(links).id((d: any) => d.id))
-      .force('charge', d3.forceManyBody().strength(-200))
+      .force('charge', d3.forceManyBody().strength(-1000))
       .force('center', d3.forceCenter(width / 2, height / 2));
 
     const link = svg.append('g')
@@ -40,7 +59,8 @@ const GraphComponent: React.FC<GraphComponentProps> = ({ data, selectedNode, onN
       .data(links)
       .enter().append('line')
       .attr('stroke-width', d => Math.sqrt(d.amount / 50)) // Set stroke-width based on amount
-      .attr('stroke', '#999');
+      .attr('stroke', '#999')
+      .attr('marker-end', 'url(#arrowhead-#999)'); // Add arrow marker
 
     const linkText = svg.append('g')
       .attr('class', 'link-text')
@@ -61,7 +81,7 @@ const GraphComponent: React.FC<GraphComponentProps> = ({ data, selectedNode, onN
       .attr('r', 10)
       .attr('fill', '#69b3a2')
       .attr('data-id', d => d.id)
-      .attr('aria-label', d =>`Node ${d.id}`)
+      .attr('aria-label', d => `Node ${d.id}`)
       .call(d3.drag<any, { id: string }>()
         .on('start', dragstarted)
         .on('drag', dragged)
@@ -156,24 +176,24 @@ const GraphComponent: React.FC<GraphComponentProps> = ({ data, selectedNode, onN
 
   function highlightConnectedNodesAndLinks(d: any, nodeColor: string, connectedNodeColor: string) {
     // Change color of the clicked or dragged node
-    d3.select(`[data-id="${d.id}"]`).attr('fill', nodeColor);
+    d3.select(`circle[data-id="${d.id}"]`).attr('fill', nodeColor);
 
     // Change color of the links connected to the clicked or dragged node
     d3.selectAll('.links line')
-      .filter((l: any) => l.source.id === d.id || l.target.id === d.id)
-      .attr('stroke', nodeColor);
+      .filter((l: any) => (l.source as any).id === d.id || (l.target as any).id === d.id)
+      .attr('stroke', nodeColor)
+      .attr('marker-end', `url(#arrowhead-${nodeColor})`); // Change arrow color
 
     // Change color of the nodes connected to the clicked or dragged node
     d3.selectAll('.nodes circle')
       .filter((n: any) => data.edges.some(
-        (l: any) => 
-            (l.from === d.id && l.to === n.id) || (l.to === d.id && l.from === n.id)
-    ))
+(l: any) => 
+(l.from === d.id && l.to === n.id) || (l.to === d.id && l.from === n.id)
+))
       .attr('fill', connectedNodeColor);
 
     // Change color of the text of the clicked or dragged node
-    d3.selectAll('.node-text text')
-      .filter((n: any) => n.id === d.id)
+    d3.selectAll(`.node-text text[data-id="${d.id}"]`)
       .attr('fill', nodeColor);
 
     // Change color of the text of the nodes connected to the clicked or dragged node
@@ -184,12 +204,13 @@ const GraphComponent: React.FC<GraphComponentProps> = ({ data, selectedNode, onN
 
   function resetNodeAndLinkColors(d: any) {
     // Revert color of the dragged node
-    d3.select(`[data-id="${d.id}"]`).attr('fill', '#69b3a2');
+    d3.select(`circle[data-id="${d.id}"]`).attr('fill', '#69b3a2');
 
     // Revert color of the links connected to the dragged node
     d3.selectAll('.links line')
-      .filter((l: any) => l.source.id === d.id || l.target.id === d.id)
-      .attr('stroke', '#999');
+      .filter((l: any) => (l.source as any).id === d.id || (l.target as any).id === d.id)
+      .attr('stroke', '#999')
+      .attr('marker-end', 'url(#arrowhead-#999)'); // Revert arrow color
 
     // Revert color of the nodes connected to the dragged node
     d3.selectAll('.nodes circle')
@@ -197,8 +218,7 @@ const GraphComponent: React.FC<GraphComponentProps> = ({ data, selectedNode, onN
       .attr('fill', '#69b3a2');
 
     // Revert color of the text of the dragged node
-    d3.selectAll('.node-text text')
-      .filter((n: any) => n.id === d.id)
+    d3.selectAll(`.node-text text[data-id="${d.id}"]`)
       .attr('fill', '#ff1');
 
     // Revert color of the text of the nodes connected to the dragged node
