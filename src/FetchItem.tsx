@@ -9,6 +9,7 @@ interface GraphData {
 const FetchItem: React.FC = () => {
   const [data, setData] = useState<GraphData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selectedNode, setSelectedNode] = useState<string | null>(null);
 
   const fetchItem = async () => {
     try {
@@ -23,10 +24,28 @@ const FetchItem: React.FC = () => {
     }
   };
 
+  const handleNodeSelect = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedNode(event.target.value);
+  };
+
+  const handleNodeClick = (nodeId: string) => {
+    setSelectedNode(nodeId);
+  };
+
   return (
     <div>
       <button onClick={fetchItem}>Fetch Item</button>
-      {data && <GraphComponent data={data} />}
+      {data && (
+        <>
+          <select onChange={handleNodeSelect} value={selectedNode || ''}>
+            <option value="" disabled>Select a node</option>
+            {data.nodes.map(node => (
+              <option key={node} value={node}>{node}</option>
+            ))}
+          </select>
+          <GraphComponent data={data} selectedNode={selectedNode} onNodeClick={handleNodeClick} />
+        </>
+      )}
       {error && <p style={{ color: 'red' }}>{error}</p>}
     </div>
   );

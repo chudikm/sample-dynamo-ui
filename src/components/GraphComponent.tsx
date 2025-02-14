@@ -6,8 +6,15 @@ interface GraphData {
   edges: { from: string; to: string; timestamp: string; amount: number }[];
 }
 
-const GraphComponent: React.FC<{ data: GraphData }> = ({ data }) => {
+interface GraphComponentProps {
+  data: GraphData;
+  selectedNode: string | null;
+  onNodeClick: (nodeId: string) => void;
+}
+
+const GraphComponent: React.FC<GraphComponentProps> = ({ data, selectedNode, onNodeClick }) => {
   const ref = useRef<SVGSVGElement | null>(null);
+  const highlightedNodeRef = useRef<any>(null);
 
   useEffect(() => {
     if (!data) return;
@@ -19,7 +26,7 @@ const GraphComponent: React.FC<{ data: GraphData }> = ({ data }) => {
       .attr('width', width)
       .attr('height', height);
 
-    const nodes = data.nodes.map(node => ({ id: node,x:0,y:0}));
+    const nodes = data.nodes.map(node => ({ id: node, x: 0, y: 0 }));
     const links = data.edges.map(edge => ({ source: edge.from, target: edge.to, amount: edge.amount }));
 
     const simulation = d3.forceSimulation(nodes)
@@ -42,7 +49,9 @@ const GraphComponent: React.FC<{ data: GraphData }> = ({ data }) => {
       .enter().append('text')
       .attr('fill', '#fff')
       .attr('font-size', '10px')
-      .text(d => d.amount);
+      .text(d => d.amount)
+      .attr('data-source', d => d.source)
+      .attr('data-target', d => d.target);
 
     const node = svg.append('g')
       .attr('class', 'nodes')
@@ -51,10 +60,12 @@ const GraphComponent: React.FC<{ data: GraphData }> = ({ data }) => {
       .enter().append('circle')
       .attr('r', 10)
       .attr('fill', '#69b3a2')
+      .attr('data-id', d => d.id)
       .call(d3.drag<any, { id: string }>()
         .on('start', dragstarted)
         .on('drag', dragged)
-        .on('end', dragended) as any);
+        .on('end', dragended) as any)
+      .on('click', clicked);
 
     const nodeText = svg.append('g')
       .attr('class', 'node-text')
@@ -99,24 +110,7 @@ const GraphComponent: React.FC<{ data: GraphData }> = ({ data }) => {
       d.fx = d.x;
       d.fy = d.y;
 
-      // Change color of the dragged node
-      d3.select(this).attr('fill', 'red');
-
-      // Change color of the links connected to the dragged node
-      link.filter(l => (l.source as any).id === d.id || (l.target as any).id === d.id)
-        .attr('stroke', 'red');
-
-      // Change color of the nodes connected to the dragged node
-      node.filter(n => links.some(l => (l.source as any).id === d.id && (l.target as any).id === n.id) || links.some(l => (l.target as any).id === d.id && (l.source as any).id === n.id))
-        .attr('fill', 'orange');
-
-      // Change color of the text of the dragged node
-      nodeText.filter(n => n.id === d.id)
-        .attr('fill', 'red');
-
-      // Change color of the text of the nodes connected to the dragged node
-      nodeText.filter(n => links.some(l => (l.source as any).id === d.id && (l.target as any).id === n.id) || links.some(l => (l.target as any).id === d.id && (l.source as any).id === n.id))
-        .attr('fill', 'orange');
+      highlightConnectedNodesAndLinks.call(this, d, 'red', 'orange');
     }
 
     function dragged(event: any, d: any) {
@@ -129,30 +123,88 @@ const GraphComponent: React.FC<{ data: GraphData }> = ({ data }) => {
       d.fx = null;
       d.fy = null;
 
-      // Revert color of the dragged node
-      d3.select(this).attr('fill', '#69b3a2');
+      resetNodeAndLinkColors.call(this, d);
+    }
 
-      // Revert color of the links connected to the dragged node
-      link.filter(l => (l.source as any).id === d.id || (l.target as any).id === d.id)
-        .attr('stroke', '#999');
-
-      // Revert color of the nodes connected to the dragged node
-      node.filter(n => links.some(l => (l.source as any).id === d.id && (l.target as any).id === n.id) || links.some(l => (l.target as any).id === d.id && (l.source as any).id === n.id))
-        .attr('fill', '#69b3a2');
-
-      // Revert color of the text of the dragged node
-      nodeText.filter(n => n.id === d.id)
-        .attr('fill', '#ff1');
-
-      // Revert color of the text of the nodes connected to the dragged node
-      nodeText.filter(n => links.some(l => (l.source as any).id === d.id && (l.target as any).id === n.id) || links.some(l => (l.target as any).id === d.id && (l.source as any).id === n.id))
-        .attr('fill', '#ff1');
+    function clicked(this: any, event: any, d: any) {
+      if (highlightedNodeRef.current) {
+        resetNodeAndLinkColors.call(this, highlightedNodeRef.current);
+      }
+      highlightedNodeRef.current = d;
+      highlightConnectedNodesAndLinks.call(this, d, 'blue', 'green');
+      onNodeClick(d.id);
     }
 
     return () => {
       svg.selectAll('*').remove();
     };
   }, [data]);
+
+  useEffect(() => {
+    if (selectedNode) {
+      const nodeData = data.nodes.find(n => n === selectedNode);
+      if (nodeData) {
+        if (highlightedNodeRef.current) {
+          resetNodeAndLinkColors(highlightedNodeRef.current);
+        }
+        highlightedNodeRef.current = { id: selectedNode };
+        highlightConnectedNodesAndLinks(highlightedNodeRef.current, 'blue', 'green');
+      }
+    }
+  }, [selectedNode]);
+
+  function highlightConnectedNodesAndLinks(d: any, nodeColor: string, connectedNodeColor: string) {
+    // Change color of the clicked or dragged node
+    d3.select(`[data-id="${d.id}"]`).attr('fill', nodeColor);
+
+    // Change color of the links connected to the clicked or dragged node
+    d3.selectAll('.links line')
+      .filter((l: any) => l.source.id === d.id || l.target.id === d.id)
+      .attr('stroke', nodeColor);
+
+    // Change color of the nodes connected to the clicked or dragged node
+    d3.selectAll('.nodes circle')
+      .filter((n: any) => data.edges.some(
+        (l: any) => 
+            (l.from === d.id && l.to === n.id) || (l.to === d.id && l.from === n.id)
+    ))
+      .attr('fill', connectedNodeColor);
+
+    // Change color of the text of the clicked or dragged node
+    d3.selectAll('.node-text text')
+      .filter((n: any) => n.id === d.id)
+      .attr('fill', nodeColor);
+
+    // Change color of the text of the nodes connected to the clicked or dragged node
+    d3.selectAll('.node-text text')
+      .filter((n: any) => data.edges.some((l: any) => (l.from === d.id && l.to === n.id) || (l.to === d.id && l.from === n.id)))
+      .attr('fill', connectedNodeColor);
+  }
+
+  function resetNodeAndLinkColors(d: any) {
+    // Revert color of the dragged node
+    d3.select(`[data-id="${d.id}"]`).attr('fill', '#69b3a2');
+
+    // Revert color of the links connected to the dragged node
+    d3.selectAll('.links line')
+      .filter((l: any) => l.source.id === d.id || l.target.id === d.id)
+      .attr('stroke', '#999');
+
+    // Revert color of the nodes connected to the dragged node
+    d3.selectAll('.nodes circle')
+      .filter((n: any) => data.edges.some((l: any) => (l.from === d.id && l.to === n.id) || (l.to === d.id && l.from === n.id)))
+      .attr('fill', '#69b3a2');
+
+    // Revert color of the text of the dragged node
+    d3.selectAll('.node-text text')
+      .filter((n: any) => n.id === d.id)
+      .attr('fill', '#ff1');
+
+    // Revert color of the text of the nodes connected to the dragged node
+    d3.selectAll('.node-text text')
+      .filter((n: any) => data.edges.some((l: any) => (l.from === d.id && l.to === n.id) || (l.to === d.id && l.from === n.id)))
+      .attr('fill', '#ff1');
+  }
 
   return <svg ref={ref}></svg>;
 };
